@@ -272,6 +272,8 @@ class User < ApplicationRecord
 end
 ```
 
+Tip : Use -I switch in Curl to view the http response headers.
+
 References
 ============
 
@@ -280,3 +282,4 @@ References
 - [Rails 5 Security Utils](https://github.com/rails/rails/blob/92703a9ea5d8b96f30e0b706b801c9185ef14f0e/activesupport/lib/active_support/security_utils.rb 'Rails 5 Security Utils')
 - [has_secure_token in Rails 5](http://api.rubyonrails.org/classes/ActiveRecord/SecureToken/ClassMethods.html 'has_secure_token in Rails 5')
 - [has_secure_password in Rails 5](http://api.rubyonrails.org/classes/ActiveModel/SecurePassword/ClassMethods.html 'has_secure_password in Rails 5')
+- [Rack Middleware for Blocking and Throttling](https://github.com/kickstarter/rack-attack 'Rack Middleware for Blocking and Throttling')
