@@ -18,7 +18,13 @@ class ApiController < ActionController::Base
   
   def authenticate_token
     authenticate_with_http_token do |token, options|
-      User.find_by(token: token)
+      # Compare the tokens in a time-constant manner, to mitigate timing attacks.
+      if user = User.find_by(token: token)
+        ActiveSupport::SecurityUtils.secure_compare(
+                        ::Digest::SHA256.hexdigest(token),
+                        ::Digest::SHA256.hexdigest(user.token))
+        user
+      end
     end
   end  
 end
