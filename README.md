@@ -2,43 +2,51 @@
 
 
 1
-
+```
 rails g model user name token email password_digest
+```
 
-    add_index :users, :token
-
+```ruby
+add_index :users, :token
+```
 2
 
+```ruby
 class User < ApplicationRecord
   has_secure_password
 end
+```
 
 3. 
 
+```ruby
 gem 'bcrypt'
+```
 
-bundle
-
-installs : bcrypt 3.1.11
+Run bundle install. This installs : bcrypt 3.1.11.
 
 4
-
 Seed the db.
 
+```ruby
 User.destroy_all
 User.create(name: 'bugs', email: 'bugs@rubyplus.com', password: '123456')
 User.create(name: 'daffy', email: 'daffy@rubyplus.com', password: '123456')
+```
 
+```
 rails db:migrate
 rails db:seed
+```
 
 5.
-
 Implement signin. Return token for successful signin else return error json.
 
+```
 rails g controller api
+```
 
-
+```ruby
 class ApiController < ActionController::Base
   def require_login
     authenticate_token || render_unauthorized("Access denied")
@@ -63,8 +71,9 @@ class ApiController < ActionController::Base
     end
   end  
 end
+```
 
-
+```ruby
 class SessionsController < ApiController
   skip_before_action :require_login, only: [:create], raise: false
 
@@ -96,7 +105,9 @@ class SessionsController < ApiController
     current_user.invalidate_token
   end
 end
+```
 
+```ruby
 class User < ApplicationRecord
   has_secure_password
   has_secure_token
@@ -113,10 +124,11 @@ class User < ApplicationRecord
     end
   end
 end
-
+```
 
 6.
 
+```ruby
 Rails.application.routes.draw do
   get 'hacker_spots/index'
 
@@ -125,9 +137,11 @@ Rails.application.routes.draw do
     delete "/logout"      => "sessions#destroy"
   end
 end
+```
 
 7.
 
+```ruby
 class HackerSpotsController < ApiController
   before_action :require_login
   
@@ -136,27 +150,38 @@ class HackerSpotsController < ApiController
     render json: { spots: 'List of places to work in coffee shops'}
   end
 end
+```
 
 8.
+
 Curl commands to test the API.
 
 Initial Authorization
+```
 curl -X POST --data "email=bugs@rubyplus.com&password=123456" http://localhost:3010/login.json
-
+```
 
 Incorrect Login Credentials
+
+```
 curl -X POST --data "email=bugs@rubyplus.com&password=123" http://localhost:3010/login.json
+```
 
 Protected Calls
-curl -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/hacker_spots/index.json
 
+```
+curl -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/hacker_spots/index.json
+```
 Sign out
+
+```
 curl -X DELETE -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/logout.json
+```
 
 9.
-
 Mitigate Timing Attacks. In API controller.
 
+```ruby
 def authenticate_token
   authenticate_with_http_token do |token, options|
     # Compare the tokens in a time-constant manner, to mitigate timing attacks.
@@ -168,13 +193,17 @@ def authenticate_token
     end
   end
 end  
+```
 
 10. Expiration.
 
+```
 $ rails g migration add_token_created_at_to_users token_created_at:datetime
+```
 
 Add compound index:
 
+```ruby
 class AddTokenCreatedAtToUsers < ActiveRecord::Migration[5.0]
   def change
     add_column :users, :token_created_at, :datetime
@@ -182,13 +211,17 @@ class AddTokenCreatedAtToUsers < ActiveRecord::Migration[5.0]
     add_index :users, [:token, :token_created_at]
   end
 end
+```
 
+```
 rails db:migrate
+```
 
 11. Touch the attribute when we create and destroy tokens.
 
 Api controller:
 
+```ruby
 def authenticate_token
   authenticate_with_http_token do |token, options|
     if user = User.with_unexpired_token(token, 2.days.ago)
@@ -200,9 +233,11 @@ def authenticate_token
     end
   end
 end  
+```
 
 User:
 
+```ruby
 class User < ApplicationRecord
   has_secure_password
   has_secure_token
@@ -235,9 +270,7 @@ class User < ApplicationRecord
     touch(:token_created_at)
   end
 end
-
-
-
+```
 
 References
 ============
