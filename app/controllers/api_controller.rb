@@ -18,8 +18,8 @@ class ApiController < ActionController::Base
   
   def authenticate_token
     authenticate_with_http_token do |token, options|
-      # Compare the tokens in a time-constant manner, to mitigate timing attacks.
-      if user = User.find_by(token: token)
+      if user = User.with_unexpired_token(token, 2.days.ago)
+        # Compare the tokens in a time-constant manner, to mitigate timing attacks.
         ActiveSupport::SecurityUtils.secure_compare(
                         ::Digest::SHA256.hexdigest(token),
                         ::Digest::SHA256.hexdigest(user.token))

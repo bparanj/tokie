@@ -140,9 +140,103 @@ end
 8.
 Curl commands to test the API.
 
+Initial Authorization
 curl -X POST --data "email=bugs@rubyplus.com&password=123456" http://localhost:3010/login.json
-curl -X DELETE -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/logout.json
+
+
+Incorrect Login Credentials
+curl -X POST --data "email=bugs@rubyplus.com&password=123" http://localhost:3010/login.json
+
+Protected Calls
 curl -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/hacker_spots/index.json
+
+Sign out
+curl -X DELETE -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/logout.json
+
+9.
+
+Mitigate Timing Attacks. In API controller.
+
+def authenticate_token
+  authenticate_with_http_token do |token, options|
+    # Compare the tokens in a time-constant manner, to mitigate timing attacks.
+    if user = User.find_by(token: token)
+      ActiveSupport::SecurityUtils.secure_compare(
+                      ::Digest::SHA256.hexdigest(token),
+                      ::Digest::SHA256.hexdigest(user.token))
+      user
+    end
+  end
+end  
+
+10. Expiration.
+
+$ rails g migration add_token_created_at_to_users token_created_at:datetime
+
+Add compound index:
+
+class AddTokenCreatedAtToUsers < ActiveRecord::Migration[5.0]
+  def change
+    add_column :users, :token_created_at, :datetime
+    remove_index :users, :token
+    add_index :users, [:token, :token_created_at]
+  end
+end
+
+rails db:migrate
+
+11. Touch the attribute when we create and destroy tokens.
+
+Api controller:
+
+def authenticate_token
+  authenticate_with_http_token do |token, options|
+    if user = User.with_unexpired_token(token, 2.days.ago)
+      # Compare the tokens in a time-constant manner, to mitigate timing attacks.
+      ActiveSupport::SecurityUtils.secure_compare(
+                      ::Digest::SHA256.hexdigest(token),
+                      ::Digest::SHA256.hexdigest(user.token))
+      user
+    end
+  end
+end  
+
+User:
+
+class User < ApplicationRecord
+  has_secure_password
+  has_secure_token
+    
+  def self.valid_login?(email, password)
+    user = find_by(email: email)
+    if user && user.authenticate(password)
+      user
+    end
+  end
+  
+  def allow_token_to_be_used_only_once
+    regenerate_token
+    touch(:token_created_at)
+  end
+  
+  def logout
+    invalidate_token
+  end
+  
+  def with_unexpired_token(token, period)
+    where(token: token).where('token_created_at >= ?', period).first
+  end
+  
+  private
+  
+  # This method is not available in has_secure_token
+  def invalidate_token
+    update_columns(token: nil)
+    touch(:token_created_at)
+  end
+end
+
+
 
 
 References
