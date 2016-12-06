@@ -1,15 +1,18 @@
 # README
 
+The user can login by providing a valid email and password. In a real project, this will be sent over a SSL connection. In this article, we will use Curl command that sends the user credentials in plain text format. Create a user model that has token for token for Token based authentication and password_digest for storing login password field. The password_digest is required for has_secure_password functionality provided by Rails. 
 
-1
 ```
 rails g model user name token email password_digest
 ```
 
+Add the index for the token field in the migration.
+
 ```ruby
 add_index :users, :token
 ```
-2
+
+Declare has_secure_password in the user model.
 
 ```ruby
 class User < ApplicationRecord
@@ -17,16 +20,13 @@ class User < ApplicationRecord
 end
 ```
 
-3. 
+We need to install bcrypt gem to use the has_secure_password Rails builtin functionality for storing encrypted passwords in our database. It also provides `authenticate` method to check if the password provided by the user is correct. Add the gem to Gemfile.
 
 ```ruby
 gem 'bcrypt'
 ```
 
-Run bundle install. This installs : bcrypt 3.1.11.
-
-4
-Seed the db.
+Run bundle install. This will install bcrypt gem version 3.1.11. Create some sample records in seeds.rb. 
 
 ```ruby
 User.destroy_all
@@ -34,17 +34,22 @@ User.create(name: 'bugs', email: 'bugs@rubyplus.com', password: '123456')
 User.create(name: 'daffy', email: 'daffy@rubyplus.com', password: '123456')
 ```
 
+Run the migration and populate the database.
+
 ```
 rails db:migrate
 rails db:seed
 ```
 
-5.
-Implement signin. Return token for successful signin else return error json.
+Login User
+
+Let's implement login. When a user successfully logs in, we will return token otherwise we will return error in json format. This token will be used in subsequent calls to the protected API endpoints. When the user logs out, the token will become invalid and no further calls to the protected endpoints can use the same token. When a user logs in again, a new token will be generated. Let's create a controller that holds all the API related functionality.
 
 ```
 rails g controller api
 ```
+
+The code is as shown below:
 
 ```ruby
 class ApiController < ActionController::Base
@@ -72,6 +77,8 @@ class ApiController < ActionController::Base
   end  
 end
 ```
+
+The `authenticate_with_http_token` takes the token provided in the header of the http request and makes it available in the `token` block variable. We ignore the `options` block variable, since we don't need it. Create a sessions controller that inherits from the ApiController.
 
 ```ruby
 class SessionsController < ApiController
@@ -107,6 +114,8 @@ class SessionsController < ApiController
 end
 ```
 
+In Rails 5, we need to use the `raise: false` in `skip_before_action` filter to return boolean instead of raising an exception. The user model is as shown below.
+
 ```ruby
 class User < ApplicationRecord
   has_secure_password
@@ -126,7 +135,13 @@ class User < ApplicationRecord
 end
 ```
 
-6.
+The `invalidate_token` method is required to expire a user's token. It should have been part of the has_secure_token functionality. Unfortunately, we have to implement it. The `has_secure_token` by default expects `token` column in the users table. We can customize it by providing it as an argument to the `has_secure_token` method:
+
+```ruby
+has_secure_token :auth_token
+```
+
+We are using has_secure_token to use the Rails builtin xyz. Define the routes to handle the API protected endpoints and the login/logout functionality. We only allow the json format request by specifying the format in the constraints option.
 
 ```ruby
 Rails.application.routes.draw do
@@ -139,7 +154,7 @@ Rails.application.routes.draw do
 end
 ```
 
-7.
+THe protected endpoint is a simple implementation that returns a json structure.
 
 ```ruby
 class HackerSpotsController < ApiController
@@ -152,11 +167,10 @@ class HackerSpotsController < ApiController
 end
 ```
 
-8.
-
-Curl commands to test the API.
+The `before_action` filter enforces the login requirement. The `require_login` is implemented in the ApiController. Here is the list of Curl commands to test the API from a terminal.
 
 Initial Authorization
+
 ```
 curl -X POST --data "email=bugs@rubyplus.com&password=123456" http://localhost:3010/login.json
 ```
@@ -178,8 +192,7 @@ Sign out
 curl -X DELETE -H "Authorization: Token token=aQNeG5FtnrgU49eC42mShNjX" http://localhost:3010/logout.json
 ```
 
-9.
-Mitigate Timing Attacks. In API controller.
+To mitigate timing attacks, change the API controller as follows:
 
 ```ruby
 def authenticate_token
@@ -195,13 +208,15 @@ def authenticate_token
 end  
 ```
 
-10. Expiration.
+Expiration of Tokens
+
+We can expire the tokens to time out the inactive login sessions and force the client to login again. Add a `token_created_at` field to users table.
 
 ```
 $ rails g migration add_token_created_at_to_users token_created_at:datetime
 ```
 
-Add compound index:
+Add compound index to the generated migration:
 
 ```ruby
 class AddTokenCreatedAtToUsers < ActiveRecord::Migration[5.0]
@@ -213,13 +228,13 @@ class AddTokenCreatedAtToUsers < ActiveRecord::Migration[5.0]
 end
 ```
 
+Run the migration.
+
 ```
 rails db:migrate
 ```
 
-11. Touch the attribute when we create and destroy tokens.
-
-Api controller:
+Touch the attribute when we create and destroy tokens. In Api controller, call the `with_unexpired_token` User class method:
 
 ```ruby
 def authenticate_token
@@ -235,7 +250,7 @@ def authenticate_token
 end  
 ```
 
-User:
+In user model, implement `with_unexpired_token` method. The complete source code for user is as follows:
 
 ```ruby
 class User < ApplicationRecord
@@ -272,7 +287,7 @@ class User < ApplicationRecord
 end
 ```
 
-Tip : Use -I switch in Curl to view the http response headers.
+Tip: Use -I switch in Curl to view the http response headers.
 
 References
 ============
