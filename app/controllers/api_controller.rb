@@ -1,5 +1,5 @@
 class ApiController < ActionController::Base
-  def require_login
+  def require_token_authentication
     authenticate_token || render_unauthorized("Access denied")
   end
       

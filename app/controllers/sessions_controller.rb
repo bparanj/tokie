@@ -1,5 +1,5 @@
 class SessionsController < ApiController
-  skip_before_action :require_login, only: [:create], raise: false
+  skip_before_action :require_token_authentication, only: [:create], raise: false
 
   def create
     if user = User.valid_login?(params[:email], params[:password])

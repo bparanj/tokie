@@ -1,5 +1,5 @@
 class HackerSpotsController < ApiController
-  before_action :require_login
+  before_action :require_token_authentication
   
   # This is protected by API token
   def index
