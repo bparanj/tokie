@@ -1,3 +1,7 @@
+# Watch the Screencast
+
+[![Securing an API in Rails 5 using Token Based API Authentication](https://d2d8g20jj5tev4.cloudfront.net/rubyplus-screencast.png)](https://www.rubyplus.com/episodes/191-Securing-an-API-using-Token-Based-Authentication-in-Rails-5)
+
 # README
 
 The user can login by providing a valid email and password. In a real project, this will be sent over a SSL connection. In this article, we will use Curl command that sends the user credentials in plain text format. Create a user model that has token for token for Token based authentication and password_digest for storing login password field. The password_digest is required for has_secure_password functionality provided by Rails. 
